@@ -145,12 +145,14 @@ public class McPlaceholder
 		
 		public ResponderThread( Socket s )
 		{
-			this.socket = s;
+			socket = s;
 			
 			try
 			{
-				this.in = new DataInputStream( s.getInputStream() );
-				this.out = new DataOutputStream( s.getOutputStream() );
+				in  = new DataInputStream( s.getInputStream() );
+				out = new DataOutputStream( s.getOutputStream() );
+				
+				s.setSoTimeout( 2000 ); // 2s should be enough, right?
 			}
 			catch( IOException e )
 			{
@@ -164,50 +166,49 @@ public class McPlaceholder
 		{
 			try
 			{
-				if( in.readByte() != 2 )
+				int i = in.read();
+				
+				if( i == -1 )
 				{
-					throw new IOException( "Not a handshake packet" );
+					throw new IOException( "Nothing was sent" );
+				}
+				else if( i != 2 )
+				{
+					throw new IOException( "Not a handshake packet (" + i +")" );
 				}
 				
-				int i = in.readShort();
+				i = in.readShort();
 				
 				if( i < 0 || i > 32 )
 				{
-					throw new IOException( "Not valid length of client name" );
+					throw new IOException( "Not valid length of client name (" + i + ")" );
 				}
 				
-				StringBuilder buffer = new StringBuilder();
+				StringBuilder name = new StringBuilder();
 				
-				for( int j = 0; j < i; j++ )
+				while( i-- > 0 )
 				{
-					buffer.append( in.readChar() );
+					name.append( in.readChar() );
 				}
 				
-				log.info( "Client nickname: " + buffer.toString() );
+				log.info( "Client nickname: " + name.toString() );
 				
 				// Send disconnect packet
-				this.out.writeByte( 255 );
-				this.out.writeShort( McPlaceholder.disconnectReason.length() );
-				this.out.writeChars( McPlaceholder.disconnectReason );
-			//	this.out.flush();
-				
-				closeSocket();
+				out.writeByte( 255 );
+				out.writeShort( McPlaceholder.disconnectReason.length() );
+				out.writeChars( McPlaceholder.disconnectReason );
 			}
 			catch( EOFException e )
 			{
-				closeSocket();
-				log.severe( "EOF: " + e.getMessage() );
+				log.severe( "Exception: Reached end of stream" );
 				e.printStackTrace();
 			}
 			catch( IOException e )
 			{
-				closeSocket();
-				log.severe( "I/O: " + e.getMessage() );
+				log.info( "Exception: " + e.getMessage() );
 			}
-			finally
-			{
-				closeSocket();
-			}
+			
+			closeSocket();
 		}
 		
 		private final void closeSocket( )
@@ -216,14 +217,18 @@ public class McPlaceholder
 			{
 				if( socket != null )
 				{
-					this.socket.close();
-					this.socket = null;
+					in.close();
+					out.close();
+					socket.close();
+					socket = null;
 				}
 			}
 			catch( IOException e )
 			{
 				log.severe( "Failed to close socket: " + e.getMessage() );
 			}
+			
+			Thread.currentThread().interrupt();
 		}
 	}
 }
