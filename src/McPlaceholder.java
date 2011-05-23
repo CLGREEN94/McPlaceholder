@@ -3,8 +3,10 @@ import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.net.BindException;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.logging.ConsoleHandler;
@@ -30,6 +32,7 @@ public class McPlaceholder
 		
 		// Parse launch parameters
 		Integer port = 25565;
+		String ip = null;
 		
 		LinkedList<String> arguments = new LinkedList<String>();
 		Collections.addAll( arguments, args );
@@ -38,7 +41,11 @@ public class McPlaceholder
 		{
 			String arg = (String)arguments.pop();
 			
-			if( arg.equalsIgnoreCase( "-p" ) )
+			if( arg.equalsIgnoreCase( "-ip" ) )
+			{
+				ip = (String)arguments.pop();
+			}
+			else if( arg.equalsIgnoreCase( "-p" ) || arg.equalsIgnoreCase( "-port" ) )
 			{
 				port = Integer.parseInt( (String)arguments.pop() );
 			}
@@ -76,15 +83,34 @@ public class McPlaceholder
 			}
 		} );
 		
-		startServe( port );
+		try
+		{
+			InetAddress addr;
+			
+			if( ip != null )
+			{
+				addr = InetAddress.getByName( ip );
+			}
+			else
+			{
+				addr = InetAddress.getLocalHost();
+			}
+			
+			startServe( port, addr );
+		}
+		catch( UnknownHostException e )
+		{
+			log.severe( "UnknownHostException when trying to get -ip. Bad ip perhaps?" );
+			System.exit( -1 );
+		}
 	}
 	
-	private static void startServe( int port )
+	private static void startServe( int port, InetAddress addr )
 	{
 		try
 		{
-			log.info( "Starting fake server on port " + port + " ..." );
-			serve = new ServerSocket( port );
+			log.info( "Starting fake server on " + addr.getHostAddress() + ":" + port + " ..." );
+			serve = new ServerSocket( port, 10, addr );
 			
 			while( !serve.isClosed() )
 			{
