@@ -2,14 +2,19 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.net.BindException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.text.SimpleDateFormat;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.logging.ConsoleHandler;
+import java.util.logging.Formatter;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 public class McPlaceholder
@@ -165,6 +170,7 @@ public class McPlaceholder
 	
 	private static class ResponderThread extends Thread
 	{
+		private String ip;
 		private Socket socket;
 		private DataInputStream in;
 		private DataOutputStream out;
@@ -175,6 +181,7 @@ public class McPlaceholder
 			
 			try
 			{
+				ip  = s.getInetAddress().getHostAddress();
 				in  = new DataInputStream( s.getInputStream() );
 				out = new DataOutputStream( s.getOutputStream() );
 				
@@ -184,8 +191,6 @@ public class McPlaceholder
 			{
 				log.severe( "Failed to make stream: " + e.getMessage() );
 			}
-			
-			log.info( "New connection: " + s.getInetAddress().getHostAddress() );
 		}
 		
 		public void run( )
@@ -217,7 +222,7 @@ public class McPlaceholder
 					name.append( in.readChar() );
 				}
 				
-				log.info( "Client nickname: " + name.toString() );
+				log.info( "Client nickname: " + name.toString() + " (" + ip + ")" );
 				
 				// Send disconnect packet
 				out.writeByte( 255 );
@@ -226,12 +231,12 @@ public class McPlaceholder
 			}
 			catch( EOFException e )
 			{
-				log.severe( "Exception: Reached end of stream" );
+				log.severe( "Exception: Reached end of stream (" + ip + ")" );
 				e.printStackTrace();
 			}
 			catch( IOException e )
 			{
-				log.info( "Exception: " + e.getMessage() );
+				log.info( "Exception: " + e.getMessage() + " (" + ip + ")" );
 			}
 			
 			closeSocket();
@@ -255,6 +260,32 @@ public class McPlaceholder
 			}
 			
 			Thread.currentThread().interrupt();
+		}
+	}
+	
+	private static class ConsoleLogFormatter extends Formatter
+	{
+		private SimpleDateFormat a = new SimpleDateFormat( "yyyy-MM-dd HH:mm:ss" );
+		
+		public String format( LogRecord logRecord )
+		{
+			StringBuilder buffer = new StringBuilder();
+			
+			buffer.append( a.format( Long.valueOf( logRecord.getMillis() ) ) );
+			
+			buffer.append( " [" + logRecord.getLevel() + "] " );
+			buffer.append( logRecord.getMessage() + '\n' );
+			
+			Throwable localThrowable = logRecord.getThrown();
+			
+			if( localThrowable != null )
+			{
+				StringWriter localStringWriter = new StringWriter();
+				localThrowable.printStackTrace( new PrintWriter( localStringWriter ) );
+				buffer.append( localStringWriter.toString() );
+			}
+			
+			return buffer.toString();
 		}
 	}
 }
