@@ -1,3 +1,5 @@
+package ru.xPaw;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
@@ -74,7 +76,9 @@ public class McPlaceholder
 		
 		// See if its legit reason
 		if( disconnectReason == null || disconnectReason.isEmpty() )
+		{
 			disconnectReason = "&cServer is down for maintenance!";
+		}
 		
 		// Replace colors
 		disconnectReason = disconnectReason.replaceAll( "(&([a-f0-9]))", "\u00A7$2" );
@@ -90,18 +94,7 @@ public class McPlaceholder
 		
 		try
 		{
-			InetAddress addr;
-			
-			if( ip != null )
-			{
-				addr = InetAddress.getByName( ip );
-			}
-			else
-			{
-				addr = InetAddress.getLocalHost();
-			}
-			
-			startServe( port, addr );
+			startServe( port, ip == null ? InetAddress.getLocalHost() : InetAddress.getByName( ip ) );
 		}
 		catch( UnknownHostException e )
 		{
