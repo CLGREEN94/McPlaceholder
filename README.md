@@ -5,8 +5,9 @@ Created by xPaw, 2011
 
 ### Launch parameters
 * `-ip` - IP to listen on (localhost by default)
-* `-p` or `-port` - Port to launch server on
-* `-m` - Custom disconnect message (supports colors like &e)
+* `-port` - Port to launch server on
+* `-motd` - Message displayed in server list (no colors)
+* `-message` - Custom disconnect message (supports colors like &e)
 
 This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License
 To view a copy of this license, visit http://creativecommons.org/licenses/by-nc-sa/3.0/
