@@ -2,15 +2,10 @@ package ru.xPaw;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.EOFException;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.net.BindException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.UnknownHostException;
 import java.text.SimpleDateFormat;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -24,12 +19,13 @@ public class McPlaceholder
 	private static final Logger log = Logger.getLogger( "McPlaceholder" );
 	private static ServerSocket serve;
 	private static String disconnectReason;
+	private static String motd;
 	
-	public static void main( String[] args )
+	public static void main( String[ ] args )
 	{
 		// Set log formatter
-		ConsoleLogFormatter formatter = new ConsoleLogFormatter();
-		ConsoleHandler handler = new ConsoleHandler();
+		ConsoleLogFormatter formatter = new ConsoleLogFormatter( );
+		ConsoleHandler handler = new ConsoleHandler( );
 		handler.setFormatter( formatter );
 		
 		log.setUseParentHandlers( false );
@@ -41,29 +37,41 @@ public class McPlaceholder
 		Integer port = 25565;
 		String ip = null;
 		
-		LinkedList<String> arguments = new LinkedList<String>();
+		LinkedList<String> arguments = new LinkedList<String>( );
 		Collections.addAll( arguments, args );
 		
-		while( !arguments.isEmpty() )
+		while( !arguments.isEmpty( ) )
 		{
-			String arg = (String)arguments.pop();
+			String arg = (String)arguments.pop( );
 			
 			if( arg.equalsIgnoreCase( "-ip" ) )
 			{
-				ip = (String)arguments.pop();
+				ip = (String)arguments.pop( );
 			}
-			else if( arg.equalsIgnoreCase( "-p" ) || arg.equalsIgnoreCase( "-port" ) )
+			else if( arg.equalsIgnoreCase( "-port" ) )
 			{
-				port = Integer.parseInt( (String)arguments.pop() );
+				port = Integer.parseInt( (String)arguments.pop( ) );
 			}
-			else if( arg.equalsIgnoreCase( "-m" ) )
+			else if( arg.equalsIgnoreCase( "-motd" ) )
 			{
-				arg = (String)arguments.pop();
+				arg = (String)arguments.pop( );
 				
-				if( arg.length() > 80 )
+				if( arg.length( ) > 60 )
+				{
+					log.warning( "MOTD is too long. It cannot exceed 60 characters." );
+					System.exit( 0 );
+				}
+				
+				motd = arg;
+			}
+			else if( arg.equalsIgnoreCase( "-message" ) )
+			{
+				arg = (String)arguments.pop( );
+				
+				if( arg.length( ) > 80 )
 				{
 					log.warning( "Message is too long. It cannot exceed 80 characters." );
-					System.exit( -1 );
+					System.exit( 0 );
 				}
 				
 				disconnectReason = arg;
@@ -74,21 +82,26 @@ public class McPlaceholder
 			}
 		}
 		
-		// See if its legit reason
-		if( disconnectReason == null || disconnectReason.isEmpty() )
+		if( motd == null || motd.isEmpty( ) )
+		{
+			motd = "Server is down for maintenance!";
+		}
+		
+		if( disconnectReason == null || disconnectReason.isEmpty( ) )
 		{
 			disconnectReason = "&cServer is down for maintenance!";
 		}
 		
 		// Replace colors
 		disconnectReason = disconnectReason.replaceAll( "(&([a-f0-9]))", "\u00A7$2" );
+		motd = motd.replaceAll( "\u00A7", "" );
 		
 		// Catch program shutdown
-		Runtime.getRuntime().addShutdownHook( new Thread()
+		Runtime.getRuntime().addShutdownHook( new Thread( )
 		{
 			public void run( )
 			{
-				closeServe();
+				closeServe( );
 			}
 		} );
 		
@@ -96,10 +109,10 @@ public class McPlaceholder
 		{
 			startServe( port, ip == null ? InetAddress.getLocalHost() : InetAddress.getByName( ip ) );
 		}
-		catch( UnknownHostException e )
+		catch( Exception e )
 		{
-			log.severe( "UnknownHostException when trying to get -ip. Bad ip perhaps?" );
-			System.exit( -1 );
+			log.severe( "Exception: " + e.getMessage( ) );
+			System.exit( 0 );
 		}
 	}
 	
@@ -107,39 +120,28 @@ public class McPlaceholder
 	{
 		try
 		{
-			log.info( "Starting fake server on " + addr.getHostAddress() + ":" + port + " ..." );
+			log.info( "Starting fake server on " + addr.getHostAddress( ) + ":" + port + " ..." );
 			serve = new ServerSocket( port, 10, addr );
 			
-			while( !serve.isClosed() )
+			while( !serve.isClosed( ) )
 			{
-				try
-				{
-					new McPlaceholder.ResponderThread( serve.accept() ).start();
-				}
-				catch( IOException e )
-				{
-					log.info( "Failed to start thread: " + e.getMessage() );
-				}
+				new McPlaceholder.ResponderThread( serve.accept( ) ).start( );
 			}
-			
-			closeServe();
 		}
 		catch( BindException e )
 		{
-			log.severe( "Can't bind port " + port + ": " + e.getMessage() );
+			log.severe( "Can't bind port " + port + ": " + e.getMessage( ) );
 			
-			System.exit( -1 );
+			System.exit( 0 );
 		}
-		catch( IOException e )
+		catch( Exception e )
 		{
-			log.severe( e.getMessage() );
+			log.severe( "Exception: " + e.getMessage( ) );
 			
-			System.exit( -1 );
+			System.exit( 0 );
 		}
-		finally
-		{
-			closeServe();
-		}
+		
+		closeServe( );
 	}
 	
 	private static void closeServe( )
@@ -153,25 +155,22 @@ public class McPlaceholder
 		
 		try
 		{
-			serve.close();
+			serve.close( );
 		}
-		catch( IOException e )
+		catch( Exception e )
 		{
-			log.severe( "Failed to stop serve: " + e.getMessage() );
+			log.severe( "Failed to stop serve: " + e.getMessage( ) );
 		}
 	}
 	
 	private static class ResponderThread extends Thread
 	{
 		private String ip;
-		private Socket socket;
 		private DataInputStream in;
 		private DataOutputStream out;
 		
 		public ResponderThread( Socket s )
 		{
-			socket = s;
-			
 			try
 			{
 				ip  = s.getInetAddress().getHostAddress();
@@ -180,9 +179,9 @@ public class McPlaceholder
 				
 				s.setSoTimeout( 2000 ); // 2s should be enough, right?
 			}
-			catch( IOException e )
+			catch( Exception e )
 			{
-				log.severe( "Failed to make stream: " + e.getMessage() );
+				log.warning( "Exception: " + e.getMessage( ) );
 			}
 		}
 		
@@ -190,69 +189,65 @@ public class McPlaceholder
 		{
 			try
 			{
-				int i = in.read();
+				int i = in.read( );
 				
-				if( i == -1 )
+				if( i == 254 ) // Query
 				{
-					throw new IOException( "Nothing was sent" );
+					String answer = motd + "\u00A71\u00A71";
+					
+					out.writeByte( 255 );
+					out.writeShort( answer.length( ) );
+					out.writeChars( answer );
 				}
-				else if( i != 2 )
+				else if( i == 2 ) // Handshake
 				{
-					throw new IOException( "Not a handshake packet (" + i +")" );
+					i = in.readShort( );
+					
+					if( i < 0 || i > 32 )
+					{
+						throw new Exception( "Not valid length of client name (" + i + ")" );
+					}
+					
+					StringBuilder name = new StringBuilder( );
+					
+					while( i-- > 0 )
+					{
+						name.append( in.readChar( ) );
+					}
+					
+					log.info( "Client nickname: " + name.toString( ) + " (" + ip + ")" );
+					
+					// Send disconnect packet
+					out.writeByte( 255 );
+					out.writeShort( McPlaceholder.disconnectReason.length( ) );
+					out.writeChars( McPlaceholder.disconnectReason );
 				}
-				
-				i = in.readShort();
-				
-				if( i < 0 || i > 32 )
+				else
 				{
-					throw new IOException( "Not valid length of client name (" + i + ")" );
+					throw new Exception( "Unknown packet (" + i + ")" );
 				}
-				
-				StringBuilder name = new StringBuilder();
-				
-				while( i-- > 0 )
-				{
-					name.append( in.readChar() );
-				}
-				
-				log.info( "Client nickname: " + name.toString() + " (" + ip + ")" );
-				
-				// Send disconnect packet
-				out.writeByte( 255 );
-				out.writeShort( McPlaceholder.disconnectReason.length() );
-				out.writeChars( McPlaceholder.disconnectReason );
 			}
-			catch( EOFException e )
+			catch( Exception e )
 			{
-				log.severe( "Exception: Reached end of stream (" + ip + ")" );
-				e.printStackTrace();
-			}
-			catch( IOException e )
-			{
-				log.info( "Exception: " + e.getMessage() + " (" + ip + ")" );
+				log.warning( "Exception: " + e.getMessage( ) + " (" + ip + ")" );
 			}
 			
-			closeSocket();
+			closeSocket( );
 		}
 		
 		private final void closeSocket( )
 		{
 			try
 			{
-				if( socket != null )
-				{
-					in.close();
-					out.close();
-					socket.close();
-					socket = null;
-				}
+				in.close( );
+				out.close( );
 			}
-			catch( IOException e )
+			catch( Exception e )
 			{
 				log.severe( "Failed to close socket: " + e.getMessage() );
 			}
 			
-			Thread.currentThread().interrupt();
+			Thread.currentThread( ).interrupt( );
 		}
 	}
 	
@@ -262,23 +257,14 @@ public class McPlaceholder
 		
 		public String format( LogRecord logRecord )
 		{
-			StringBuilder buffer = new StringBuilder();
+			StringBuilder buffer = new StringBuilder( );
 			
-			buffer.append( a.format( Long.valueOf( logRecord.getMillis() ) ) );
+			buffer.append( a.format( Long.valueOf( logRecord.getMillis( ) ) ) );
 			
-			buffer.append( " [" + logRecord.getLevel() + "] " );
-			buffer.append( logRecord.getMessage() + '\n' );
+			buffer.append( " [" + logRecord.getLevel( ) + "] " );
+			buffer.append( logRecord.getMessage( ) + '\n' );
 			
-			Throwable localThrowable = logRecord.getThrown();
-			
-			if( localThrowable != null )
-			{
-				StringWriter localStringWriter = new StringWriter();
-				localThrowable.printStackTrace( new PrintWriter( localStringWriter ) );
-				buffer.append( localStringWriter.toString() );
-			}
-			
-			return buffer.toString();
+			return buffer.toString( );
 		}
 	}
 }
