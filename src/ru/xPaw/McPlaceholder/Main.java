@@ -6,13 +6,19 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 public class Main
 {
 	protected static final Logger log = Logger.getLogger( "McPlaceholder" );
 	protected static String disconnectReason;
+	protected static String versionString;
 	protected static String motd;
+	protected static String motdStripped;
 	private static ServerSocket server;
+	
+	protected static final char COLOR_CHAR = '\u00A7';
+	protected static final char NULL_BYTE  = '\u0000';
 	
 	public static void main( String[ ] args )
 	{
@@ -24,7 +30,8 @@ public class Main
 		log.setUseParentHandlers( false );
 		log.addHandler( handler );
 		
-		log.info( "Minecraft Placeholder v1.1 by xPaw" );
+		log.info( "Minecraft Placeholder v1.2 by xPaw" );
+		log.info( "View on GitHub: https://github.com/xPaw/McPlaceholder" );
 		
 		// Parse launch parameters
 		Integer port = 25565;
@@ -58,6 +65,19 @@ public class Main
 				
 				motd = arg;
 			}
+			else if( arg.equalsIgnoreCase( "-version" ) )
+			{
+				arg = (String)arguments.pop( );
+				
+				if( arg.length( ) > 30 )
+				{
+					log.warning( "Version is too long. It cannot exceed 30 characters." );
+					
+					arg = arg.substring( 0, 30 );
+				}
+				
+				versionString = arg;
+			}
 			else if( arg.equalsIgnoreCase( "-message" ) )
 			{
 				arg = (String)arguments.pop( );
@@ -79,7 +99,12 @@ public class Main
 		
 		if( motd == null || motd.isEmpty( ) )
 		{
-			motd = "Server is down for maintenance!";
+			motd = "&4Server is down for maintenance!";
+		}
+		
+		if( versionString == null || motd.isEmpty( ) )
+		{
+			versionString = "McPlaceholder";
 		}
 		
 		if( disconnectReason == null || disconnectReason.isEmpty( ) )
@@ -88,8 +113,12 @@ public class Main
 		}
 		
 		// Replace colors
-		disconnectReason = disconnectReason.replaceAll( "(&([a-f0-9]))", "\u00A7$2" );
-		motd = motd.replaceAll( "\u00A7", "" );
+		disconnectReason = translateAlternateColorCodes( disconnectReason );
+		versionString    = translateAlternateColorCodes( versionString );
+		motd             = translateAlternateColorCodes( motd );
+		
+		// Make stripped version of motd
+		motdStripped = Pattern.compile( "(?i)" + String.valueOf(COLOR_CHAR) + "[0-9A-FK-OR]" ).matcher( motd ).replaceAll( "" );
 		
 		// Catch program shutdown
 		Runtime.getRuntime( ).addShutdownHook( new Thread( )
@@ -141,7 +170,7 @@ public class Main
 			return;
 		}
 		
-		log.info( "Stopping fake server ..." );
+		log.info( "Stopping fake server..." );
 		
 		try
 		{
@@ -151,5 +180,21 @@ public class Main
 		{
 			log.severe( "Failed to stop server: " + e.getMessage( ) );
 		}
+	}
+	
+	public static String translateAlternateColorCodes( String textToTranslate )
+	{
+		char[] b = textToTranslate.toCharArray( );
+		
+		for( int i = 0; i < b.length - 1; i++ )
+		{
+			if( b[ i ] == '&' && "0123456789AaBbCcDdEeFfKkLlMmNnOoRr".indexOf( b[ i + 1 ] ) > -1 )
+			{
+				b[ i ] = COLOR_CHAR;
+				b[ i + 1 ] = Character.toLowerCase( b[ i + 1 ] );
+		    }
+		}
+		
+		return new String( b );
 	}
 }

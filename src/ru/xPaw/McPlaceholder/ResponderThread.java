@@ -34,47 +34,46 @@ public class ResponderThread extends Thread
 			
 			if( i == 254 ) // Query
 			{
-				String answer = Main.motd + "\u00A71\u00A71";
+				i = in.available( ) > 0 ? in.read( ) : 0;
 				
+				String answer = "";
+				
+				if( i == 1 )
+				{
+					answer = Main.COLOR_CHAR + "1" + Main.NULL_BYTE + "1" + Main.NULL_BYTE + Main.versionString + Main.NULL_BYTE + Main.motd + Main.NULL_BYTE + 1 + Main.NULL_BYTE + 1;
+				}
+				else
+				{
+					answer = Main.motdStripped + Main.COLOR_CHAR + 1 + Main.COLOR_CHAR + 1;
+				}
+				
+				// Send server list response
 				out.writeByte( 255 );
 				out.writeShort( answer.length( ) );
 				out.writeChars( answer );
 			}
 			else if( i == 2 ) // Handshake
 			{
-				i = in.readShort( );
-				
-				if( i < 0 || i > 32 )
-				{
-					//throw new Exception( "Not valid length of client name (" + i + ")" );
-					return;
-				}
-				
-				StringBuilder name = new StringBuilder( );
-				
-				while( i-- > 0 )
-				{
-					name.append( in.readChar( ) );
-				}
-				
-				Main.log.info( "Client nickname: " + name.toString( ) + " (" + ip + ")" );
+				Main.log.info( "Received connection from " + ip );
 				
 				// Send disconnect packet
 				out.writeByte( 255 );
 				out.writeShort( Main.disconnectReason.length( ) );
 				out.writeChars( Main.disconnectReason );
 			}
-			/*else
+			else
 			{
 				throw new Exception( "Unknown packet (" + i + ")" );
-			}*/
+			}
 		}
 		catch( Exception e )
 		{
 			Main.log.warning( "Exception: " + e.getMessage( ) + " (" + ip + ")" );
 		}
-		
-		closeSocket( );
+		finally
+		{
+			closeSocket( );
+		}
 	}
 	
 	private final void closeSocket( )
